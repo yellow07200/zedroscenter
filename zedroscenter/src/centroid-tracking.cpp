@@ -165,7 +165,7 @@ void Center::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 	}
 	else 	ROS_INFO("no image subscribed from l_image");
 	ROS_INFO("01");
-    cv::threshold(src, src, 70, 220, cv::THRESH_BINARY);//50, 255 black marker //15, 255, //CV_THRESH_BINARY //150, 255,white marker//140, 255 last good //200, 255
+    cv::threshold(src, src, 80, 210, cv::THRESH_BINARY);//50, 255 black marker //15, 255, //CV_THRESH_BINARY //150, 255,white marker//140, 255 last good //200, 255 //70, 220,
 	ROS_INFO("1");
     //Find the contours. Use the contourOutput Mat so the original image doesn't get overwritten
     //std::vector<std::vector<cv::Point> > contours;
@@ -199,15 +199,15 @@ void Center::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 			//cout<<"Better_Contours.size="<<Better_Contours.size()<<endl;
         	//cv::drawContours(contourImage, contours, idx, colors[idx % 3]);
 			cv::Moments mo = cv::moments(contours[idx]);
-			if (mo.m10/mo.m00<800 && mo.m10/mo.m00>400){
-			if (mo.m01/mo.m00<500 && mo.m01/mo.m00>200){
+			if (mo.m10/mo.m00<900 && mo.m10/mo.m00>500){ // 300-900
+			if (mo.m01/mo.m00<500 && mo.m01/mo.m00>200){ // 200-500
 			
 			curr_points.push_back(cv::Point(mo.m10/mo.m00 , mo.m01/mo.m00));
 			Best_Contours.push_back(contours[idx]);
 			}}
 			//circle(centroidImage, Point(mo.m10/mo.m00 , mo.m01/mo.m00), 1, cv::Scalar(255, 255, 255), 5, 8, 0);
 			//cout<<"m00="<<mo.m00<<endl;
-			if (iter==1)
+			if (iter==2)
 			{
 				orig_objects.push_back({idx, {mo.m10/mo.m00, mo.m01/mo.m00}});
 				orig_points.push_back(cv::Point(mo.m10/mo.m00 , mo.m01/mo.m00));//orig_points
@@ -237,7 +237,7 @@ void Center::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 		//auto tt=Best_Contours[idx].size();	
 		vector<cv::Point> A=Best_Contours[idx];
 		//cout<<"x="<<A[0].x<<",y="<<A[0].y<<endl;
-		std::cout<<"A_size="<<A.size()<<std::endl;
+		//std::cout<<"A_size="<<A.size()<<std::endl;
 		distance_final=0;		
 		int countt=0;
 		vector<int> Ax,Ay;
@@ -285,7 +285,7 @@ void Center::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 			
 		}
 		distance_final/=countt;
-		cout<<"distance_final="<<distance_final<<endl;
+		//cout<<"distance_final="<<distance_final<<endl;
 		//depth_final.push_back(distance_final);
 		float xf=(float)curr_points[idx].x;
 		float yf=(float)curr_points[idx].y;
@@ -309,7 +309,7 @@ void Center::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 			if (xyzpoint[i].y>100 && xyzpoint[i].y<700) bb=1;
 			if (aa==1&&bb==1)
 			{
-				if (iter==1)
+				if (iter==2)
 					region_points_xyz.push_back(cv::Point3f(xyzpoint[i].x,xyzpoint[i].y,xyzpoint[i].z));
 				else curr_points_xyz.push_back(cv::Point3f(xyzpoint[i].x,xyzpoint[i].y,xyzpoint[i].z));
 			}
@@ -317,7 +317,7 @@ void Center::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 	}
 	cout<<"region1="<<region_points_xyz.size()<<endl;
 	cv::Point3i p;//cv::Point p;
-	if (iter==1) 
+	if (iter==2) 
 	{
 		//sort(begin(region_points), end(region_points),[p](const cv::Point& lhs, const cv::Point& rhs){ return lhs.x < rhs.x;});
 		sort(begin(region_points_xyz), end(region_points_xyz),[p](const cv::Point3f& lhs, const cv::Point3f& rhs){ return lhs.x <= rhs.x;});
@@ -410,19 +410,16 @@ void Center::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 
 	cout<<"3..."<<endl;
 
-	/* cv::namedWindow("Input Image", CV_WINDOW_AUTOSIZE);
+	cv::namedWindow("Input Image", CV_WINDOW_AUTOSIZE);
     cv::imshow("Input Image", src);
-	cv::waitKey(1); */
+	cv::waitKey(1);
     //cvMoveWindow("Input Image", 0, 0);
-
-	/* namedWindow("src", cv::WINDOW_NORMAL);
-   	cv::imshow("src", src);
 
 	namedWindow("Contours", cv::WINDOW_NORMAL);
    	cv::imshow("Contours", contourImage);
 
 	namedWindow("Centroid", cv::WINDOW_NORMAL);
-    cv::imshow("Centroid", centroidImage); */
+    cv::imshow("Centroid", centroidImage);
     //cvMoveWindow("Contours", 200, 0);
     //cv::waitKey(0);
 
@@ -472,6 +469,8 @@ void Center::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
 	//region_points_xyz.clear();
 	curr_points_xyz.clear();
 	depths.clear();
+	deformation.clear();
+	defor_xyz.clear();
 	depth_sign=0;
 /* 	depths = NULL;
 	delete depths; */

@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <chrono>
+#include <stdio.h>
 
 #include "centroid-tracking.hpp"
 #include <vector>
@@ -63,63 +64,14 @@ using namespace std;
 	//sl::Mat point_cloud;
 	//sl::float4 point_cloud_value;
 
+	float* depths;
+
 namespace zedroscenternode {
 
-void Center::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
-{
-
-	const cv::Mat_<uint8_t> l_image = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::RGB8)->image;
-	if(!l_image.data) ROS_INFO("no rgb image!");
-	else ROS_INFO("rgb image subscribed!");
-	ROS_INFO("beginning_image");
-}
-
-void Center::depthCallback(const sensor_msgs::Image::ConstPtr& msg)
-{
-	//const cv::Mat_<uint8_t> d_image = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO16)->image;
-	//ROS_INFO("depth_image");
-	depths = (float*)(&msg->data[0]);
-
-	ROS_INFO("depth_image");
-	/* for(int u=0;u<msg->width;u++)
-    {
-        for(int v=0;v<msg->height;v++)
-        {
-        	//Vec3b color = image.at<Vec3b>(Point(x,y));
-        	d_image.at<int>(u,v)=depths[u*v+v];
-		}
-    } */
-
-	/* // Image coordinates of the center pixel
-    int u = msg->width / 2;
-    int v = msg->height / 2;
-
-    // Linear index of the center pixel
-    int centerIdx = u + msg->width * v;
-
-    // Output the measure
-    ROS_INFO("Center distance : %g m", depths[centerIdx]); */
-
-	/* cv_bridge::CvImageConstPtr cv_ptr;
-  	try
-  	{
-    	cv_ptr = cv_bridge::toCvShare(msg);
-
-  	}
-  	catch (cv_bridge::Exception& e)
-  	{
-   		ROS_ERROR("cv_bridge exception: %s", e.what());
-    	return;
-  	}
-
-  	cv::Mat d_image = cv::Mat(cv_ptr->image.size(), CV_8UC1);
-	ROS_INFO("beginning_depth"); */
-
-}
 
 void Center::FTBiasedCallback(const geometry_msgs::WrenchStamped::ConstPtr &biased_ft_msg)
 {
-	//ROS_INFO("ft");
+	ROS_INFO("ft");
 	FT_Biased=*biased_ft_msg;
 
 	fx = FT_Biased.wrench.force.x;
@@ -134,9 +86,35 @@ void Center::FTBiasedCallback(const geometry_msgs::WrenchStamped::ConstPtr &bias
 	//ROS_INFO("fx",fx);
 }
 
+void Center::depthCallback(const sensor_msgs::Image::ConstPtr& msg)
+{
+	//const cv::Mat_<uint8_t> d_image = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO16)->image;
+	//ROS_INFO("depth_image");
+	float* depths_ptr = (float*)(&msg->data[0]);
+	for(int i=0; i<921600; i++)
+	{
+		depths.push_back(depths_ptr[i]);
+	}
+	int len=sizeof(msg->data) / sizeof(msg->data[0]);
+	std::cout<<"msg->data[0]="<<msg->data[0]<<std::endl;//",msg->data[0][0]"<<msg->data[0][0]<<std::endl;
+	ROS_INFO("depth image subscribed!");
+
+	int u = msg->width / 2;
+    int v = msg->height / 2;
+    int centerIdx = u + msg->width * v;
+    ROS_INFO("Center distance : %g m", depths[centerIdx]);
+	depth_sign=1;
+	std::cout<<"size="<<msg->data.size()<<std::endl;
+	std::cout<<"depths[640000]="<<depths[635376]<<std::endl;
+
+	//ROS_INFO("size of depths: %d", sizeof(*depths) );
+
+}
+
 Center::Center(ros::NodeHandle & nh) : nh_(nh) //, ros::NodeHandle nh_private//
 {
 	ROS_INFO("beginning");
+	
 	//zed_depth_sub = it.subscribe("/zedm/zed_node/depth/de:depthCallbath_registered",1,&Center::depthCallback,this);
 	//zed_image_sub = it.subscribe("/zedm/zed_node/rgb/image_rect_color",1,&Center::imageCallback,this);
 	zed_depth_sub = nh_.subscribe("/zedm/zed_node/depth/depth_registered", 1, &Center::depthCallback, this); 
@@ -149,8 +127,21 @@ Center::Center(ros::NodeHandle & nh) : nh_(nh) //, ros::NodeHandle nh_private//
 	center_original_pub = nh_.advertise<std_msgs::Float32MultiArray>("center_original_info", 1);
 	ft_pub = nh_.advertise<std_msgs::Float32MultiArray>("ft_info", 1);
 	
+}
+
+
+void Center::imageCallback(const sensor_msgs::Image::ConstPtr& msg)
+{
+
+	height=msg->height;
+	width=msg->width;
+	const cv::Mat l_image = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::RGB8)->image;//_<uint8_t>
+	if(!l_image.data) ROS_INFO("no rgb image!");
+	else ROS_INFO("rgb image subscribed!");
+	//ROS_INFO("beginning_image");
 //}
 	iter++;
+	std::cout<<"iter="<<iter<<std::endl;
 	/* if (sensor_msgs::image_encodings::isColor(msg->encoding))
 		cv::Mat cv_ptr = cv_bridge::toCvShare(msg, enc::BGR8);
     else
@@ -161,16 +152,19 @@ Center::Center(ros::NodeHandle & nh) : nh_(nh) //, ros::NodeHandle nh_private//
     Mat depth_image_zed(new_width, new_height, MAT_TYPE::U8_C4);
     cv::Mat depth_image_ocv = slMat2cvMat(depth_image_zed); */
     //sl::Mat point_cloud;
-	ROS_INFO("DETECTION_ITER",iter);
-
+	ROS_INFO("DETECTION_ITER");
 	
-	cv::Mat src=l_image;
+	cv::Mat src;
+	l_image.copyTo(src);
+	
 	ROS_INFO("00");
 	if (src.data)
 	{
-    cv::cvtColor(src, src, cv::COLOR_RGB2GRAY);//CV_BGR2GRAY
+		ROS_INFO("00-1");
+    	cv::cvtColor(src, src, cv::COLOR_RGB2GRAY);//CV_BGR2GRAY
 	}
 	else 	ROS_INFO("no image subscribed from l_image");
+	ROS_INFO("01");
     cv::threshold(src, src, 70, 220, cv::THRESH_BINARY);//50, 255 black marker //15, 255, //CV_THRESH_BINARY //150, 255,white marker//140, 255 last good //200, 255
 	ROS_INFO("1");
     //Find the contours. Use the contourOutput Mat so the original image doesn't get overwritten
@@ -225,11 +219,13 @@ Center::Center(ros::NodeHandle & nh) : nh_(nh) //, ros::NodeHandle nh_private//
 	//sort(begin(Best_Contours), end(Best_Contours),[p](const cv::Point& lhs, const cv::Point& rhs){ return lhs.x < rhs.x;});
 	cout<<"Best_Contours.size="<<Best_Contours.size()<<endl;
 	//cv::imshow("0", Best_Contours[2]);
+	if(depth_sign==1)
+	{
     for (size_t idx = 0; idx < Best_Contours.size(); idx++) 
 	{
 		cv::drawContours(contourImage, Best_Contours, idx, colors[idx % 3]);
 		//cv::Moments mo = cv::moments(contours[idx]);
-		//curr_points.push_back(cv::Point(mo.m10/mo.m00 , mo.m01/mo.m00));
+		//curr_points.push_back(cv::Point(mo.m10/mo.m00src.cols , mo.m01/mo.m00));
 		//if (iter==1)
 		//{
 		//	orig_objects.push_back({idx, {mo.m10/mo.m00, mo.m01/mo.m00}});
@@ -241,22 +237,29 @@ Center::Center(ros::NodeHandle & nh) : nh_(nh) //, ros::NodeHandle nh_private//
 		//auto tt=Best_Contours[idx].size();	
 		vector<cv::Point> A=Best_Contours[idx];
 		//cout<<"x="<<A[0].x<<",y="<<A[0].y<<endl;
+		std::cout<<"A_size="<<A.size()<<std::endl;
 		distance_final=0;		
 		int countt=0;
 		vector<int> Ax,Ay;
+		//ROS_INFO("002");
  		for (int t=0; t<A.size(); t++)
 		{
+			//ROS_INFO("002-1");
 			//sl::float4 point_cloud_value;
 			//point_cloud.getValue(A[t].x, A[t].y, &point_cloud_value);
-			double depth_value = depths[A[t].x*A[t].y+A[t].y];
-			//double depth_value=d_image.at<double>(A[t].x,A[t].y);
-			depth.push_back(depth_value);
-			float distance = sqrt(A[t].x*A[t].x + A[t].y*A[t].y + depth_value*depth_value);
-			if (!isnan(distance))
+			//std::cout<<"A[t].x="<<A[t].x<<", A[t].y="<<A[t].y<<", width="<<width<<",height="<<height<<std::endl;
+			int idx=A[t].y*width+A[t].x;
+			//ROS_INFO("002-2");
+			//std::cout<<"idx="<<idx<<std::endl;
+			//std::cout<<"depths.size="<<depths.size()<<std::endl;
+			//std::cout<<"depths[idx]="<<depths[idx]<<std::endl;
+			double depth_value=0;
+			if(!isnan(depths[idx])) 
 			{		
 				countt++;
-				distance_final += distance;
+				distance_final += depths[idx];
 			}
+			//ROS_INFO("003");
 			Ax.push_back(A[t].x);
 			Ay.push_back(A[t].y); 
 		} 
@@ -271,13 +274,12 @@ Center::Center(ros::NodeHandle & nh) : nh_(nh) //, ros::NodeHandle nh_private//
 			{
 				//sl::float4 point_cloud_value;
 				//point_cloud.getValue(ax, ay, &point_cloud_value);
-				double depth_value = depths[ax*ay+ay];
-				//double depth_value=d_image.at<double>(ax,ay);
-				float distance = sqrt(ax*ax + ay*ay + depth_value*depth_value);
-				if (!isnan(distance))
+				int idx=ay*width+ax;
+				double depth_value;
+				if(!isnan(depths[idx])) 
 				{		
 					countt++;
-					distance_final += distance;
+					distance_final += depths[idx];
 				}
 			}
 			
@@ -289,7 +291,10 @@ Center::Center(ros::NodeHandle & nh) : nh_(nh) //, ros::NodeHandle nh_private//
 		float yf=(float)curr_points[idx].y;
 		
 		xyzpoint.push_back(cv::Point3f(xf,yf,distance_final));//, distance_final));
+		Ax.clear();
+		Ay.clear();
 
+	
 	}
 	cout<<"region00="<<orig_points.size()<<endl;
 	cout<<"region0="<<xyzpoint.size()<<endl;
@@ -404,7 +409,10 @@ Center::Center(ros::NodeHandle & nh) : nh_(nh) //, ros::NodeHandle nh_private//
 	cout<<"2..."<<endl;
 
 	cout<<"3..."<<endl;
-    //cv::imshow("Input Image", src);
+
+	/* cv::namedWindow("Input Image", CV_WINDOW_AUTOSIZE);
+    cv::imshow("Input Image", src);
+	cv::waitKey(1); */
     //cvMoveWindow("Input Image", 0, 0);
 
 	/* namedWindow("src", cv::WINDOW_NORMAL);
@@ -449,7 +457,7 @@ Center::Center(ros::NodeHandle & nh) : nh_(nh) //, ros::NodeHandle nh_private//
 	{
 		center_disp_msg.data.push_back(deformation[i]);
 	}
-	center_original_pub.publish(center_disp_msg);
+	center_disp_pub.publish(center_disp_msg);
 
 	std_msgs::Float32MultiArray ft_msg; // ft information 
 	for (int i=0; i<ft.size(); i++)
@@ -463,11 +471,15 @@ Center::Center(ros::NodeHandle & nh) : nh_(nh) //, ros::NodeHandle nh_private//
 	//points_xyz.clear();
 	//region_points_xyz.clear();
 	curr_points_xyz.clear();
-
+	depths.clear();
+	depth_sign=0;
+/* 	depths = NULL;
+	delete depths; */
     //zed.close();
+} //end-if(depth_sign==1)
 
-
-
+	ros::spinOnce(); 
+//}//end if(iter>1)
     //return 0; 
 
 }

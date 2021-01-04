@@ -46,7 +46,7 @@ namespace zedroscenternode
         ros::Publisher center_disp_pub;
         ros::Publisher ft_pub;
 
-        int iter;
+        int iter=0;
         std::vector<cv::Point3f> xyzpoint;
         std::vector<cv::Point3f> curr_points_xyz;
 

@@ -18,8 +18,9 @@ namespace zedroscenternode
         Center(ros::NodeHandle & nh);//, ros::NodeHandle nh_private);
         //virtual ~Meanshift();
         double calDis(int x1, int y1, int x2, int y2);
-        void detection();
         //float calDepth(sl::Mat point_cloud, cv::Point point);
+        //void detection(cv::Mat image,cv::Mat image1);
+        
 
 
     private:
@@ -27,7 +28,7 @@ namespace zedroscenternode
         void depthCallback(const sensor_msgs::Image::ConstPtr& msg);
         void imageCallback(const sensor_msgs::Image::ConstPtr& msg);
         void FTBiasedCallback(const geometry_msgs::WrenchStamped::ConstPtr &bias_ft);
-
+        
 
         geometry_msgs::WrenchStamped FT_Biased;
 
@@ -49,15 +50,20 @@ namespace zedroscenternode
         std::vector<cv::Point3f> xyzpoint;
         std::vector<cv::Point3f> curr_points_xyz;
 
-        const cv::Mat_<uint8_t> l_image;
-        const cv::Mat_<uint8_t> d_image;
+        const cv::Mat l_image;
+        const cv::Mat d_image;
 
         std::vector<float> depth;
         std::vector<float> ft;
 
         float fx,fy,fz,tx,ty,tz;
 
-        float* depths;
+        //float* depths;
+        std::vector<float> depths;
+        int width;
+        int height;
+        int depth_sign;
+
 
     }; // class
 
